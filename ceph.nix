@@ -65,6 +65,7 @@ let
   };
 
   networkMonA = {
+    firewall.enable = false;
     dhcpcd.enable = false;
     interfaces.eth1.ipv4.addresses = pkgs.lib.mkOverride 0 [
       { address = cfg.monA.ip; prefixLength = 24; }
@@ -96,7 +97,7 @@ let
   # For other ways to deploy a ceph cluster, look at the documentation at
   # https://docs.ceph.com/docs/master/
   testscript = { ... }: ''
-    start_all()
+    monA.start()
 
     monA.wait_for_unit("network.target")
 
@@ -205,13 +206,54 @@ let
         "ceph auth print-key client.bob > bob.key"
     );
 
-    monA.succeed(
-        "sudo mkdir -p /mnt/cephfs",
-        "sudo mount.ceph bob@.cephfs=/ /mnt/cephfs -o secretfile=bob.key"
+    bob_key = monA.succeed("ceph auth print-key client.bob")
 
-    
+    # monA.succeed(
+    #     "sudo mkdir -p /mnt/cephfs",
+    #     "sudo mount.ceph bob@.cephfs=/ /mnt/cephfs -o secretfile=bob.key",
+    # )
+
+    client1.start()
+    client2.start()
+
+    client1.wait_for_unit("network.target")
+    client2.wait_for_unit("network.target")
+
+    client1.succeed(
+        "sudo mkdir -p /mnt/cephfs",
+        f"sudo mount.ceph bob@.cephfs=/ /mnt/cephfs -o secret='{bob_key}'",
+    )
+
+    client2.succeed(
+        "sudo mkdir -p /mnt/cephfs",
+        f"sudo mount.ceph bob@.cephfs=/ /mnt/cephfs -o secret='{bob_key}'",
     )
   '';
+
+  generateClient = ip: { pkgs, lib, ... }: {
+
+    networking.firewall.enable = false;
+    networking.dhcpcd.enable = false;
+    networking.interfaces.eth1.ipv4.addresses = pkgs.lib.mkOverride 0 [
+      { address = ip; prefixLength = 24; }
+    ];
+
+    services.ceph = {
+      enable = true;
+      global = {
+        fsid = cfg.clusterId;
+        monHost = cfg.monA.ip;
+        monInitialMembers = cfg.monA.name;
+      };
+      client.enable = true;
+    };
+
+    environment.systemPackages = with pkgs; [
+      ceph
+      qemu
+      virtiofsd
+    ];
+  };
 in {
   name = "basic-single-node-ceph-cluster";
   meta = with pkgs.lib.maintainers; {
@@ -220,6 +262,9 @@ in {
 
   nodes = {
     monA = generateHost { pkgs = pkgs; cephConfig = cephConfigMonA; networkConfig = networkMonA; };
+
+    client1 = generateClient "192.168.1.2";
+    client2 = generateClient "192.168.1.3";
   };
 
   testScript = testscript;
