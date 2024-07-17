@@ -279,7 +279,7 @@ in {
     };
     security.pam.services.sshd.allowNullPassword = true;
     virtualisation.forwardPorts = [
-      { from = "host"; host.port = 2225; guest.port = 22; }
+      { from = "host"; host.port = 2222; guest.port = 22; }
     ];
   };
   
@@ -295,7 +295,7 @@ in {
     };
     security.pam.services.sshd.allowNullPassword = true;
     virtualisation.forwardPorts = [
-      { from = "host"; host.port = 2224; guest.port = 22; }
+      { from = "host"; host.port = 2223; guest.port = 22; }
     ];
     };
   };
