@@ -263,8 +263,8 @@ in {
   nodes = {
     monA = generateHost { pkgs = pkgs; cephConfig = cephConfigMonA; networkConfig = networkMonA; };
 
-    client1 = generateClient 2222 "192.168.1.2";
-    client2 = generateClient 2223 "192.168.1.3";
+    client1 = generateClient "192.168.1.2";
+    client2 = generateClient "192.168.1.3";
   };
 
   interactive.nodes = {
