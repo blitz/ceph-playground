@@ -92,6 +92,17 @@ let
     };
   }; };
 
+  senderVmScript = pkgs.writeShellScriptBin "sender_setup.bash"
+  ''
+  sudo ${pkgs.virtiofsd} --socket-path=/tmp/vfsd.sock --shared-dir /mnt/cephfs --announce-submounts --inode-file-handles=mandatory&
+  qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=4G,share=on -numa node,memdev=mem -m 4G
+  '';
+
+  receiverVmScript = pkgs.writeShellScriptBin "receiver_setup.bash"
+  ''
+  sudo ${pkgs.virtiofsd} --socket-path=/tmp/vfsd2.sock --shared-dir /mnt/cephfs --announce-submounts --inode-file-handles=mandatory&
+  qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd2.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=4G,share=on -numa node,memdev=mem -m 4G -incoming tcp:localhost:2323
+  '';
   # Following deployment is based on the manual deployment described here:
   # https://docs.ceph.com/docs/master/install/manual-deployment/
   # For other ways to deploy a ceph cluster, look at the documentation at
@@ -229,9 +240,7 @@ let
         f"sudo mount.ceph bob@.cephfs=/ /mnt/cephfs -o secret='{bob_key}'",
     )
   '';
-
   generateClient = ip: { pkgs, lib, ... }: {
-
     networking.firewall.enable = false;
     networking.dhcpcd.enable = false;
     networking.interfaces.eth1.ipv4.addresses = pkgs.lib.mkOverride 0 [
@@ -252,6 +261,8 @@ let
       ceph
       qemu
       virtiofsd
+      senderVmScript
+      receiverVmScript
     ];
   };
 in {
