@@ -48,6 +48,7 @@ let
 
       # Go fast.
       cores = 4;
+      memorySize = 2048;
     };
 
     networking = networkConfig;
@@ -230,13 +231,40 @@ let
     )
   '';
 
-  generateClient = ip: { pkgs, lib, ... }: {
+  generateClient = ip: { pkgs, lib, ... }: let
+    start-sender-vm = pkgs.writeShellScriptBin "start-sender-vm" ''
+      sudo ${pkgs.virtiofsd}/bin/virtiofsd --socket-path=/tmp/vfsd.sock --shared-dir /mnt/cephfs --announce-submounts --inode-file-handles=mandatory &
+      sleep 1
+      sudo chmod 0666 /tmp/vfsd.sock
+      qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=2G,share=on -numa node,memdev=mem -m 2G -monitor stdio -display none -kernel ${./cirros-0.6.2-x86_64-kernel} -initrd ${./cirros-0.6.2-x86_64-initramfs} -append "dslist=nocloud"
+    '';
+
+    start-receiver-vm = pkgs.writeShellScriptBin "start-receiver-vm" ''
+      sudo ${pkgs.virtiofsd}/bin/virtiofsd --socket-path=/tmp/vfsd.sock --shared-dir /mnt/cephfs --announce-submounts --inode-file-handles=mandatory &
+      sleep 1
+      sudo chmod 0666 /tmp/vfsd.sock
+      qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=2G,share=on -numa node,memdev=mem -m 2G -incoming tcp:192.168.1.3:2323 -display curses
+    '';
+  in {
+
+    virtualisation.memorySize = 6000;
 
     networking.firewall.enable = false;
     networking.dhcpcd.enable = false;
     networking.interfaces.eth1.ipv4.addresses = pkgs.lib.mkOverride 0 [
       { address = ip; prefixLength = 24; }
     ];
+
+    services.openssh = {
+      enable = true;
+      settings = {
+        PermitRootLogin = "yes";
+        PermitEmptyPasswords = "yes";
+      };
+    };
+
+    security.pam.services.sshd.allowNullPassword = true;
+    security.sudo.wheelNeedsPassword = false;
 
     services.ceph = {
       enable = true;
@@ -249,6 +277,9 @@ let
     };
 
     environment.systemPackages = with pkgs; [
+      start-sender-vm
+      start-receiver-vm
+
       ceph
       qemu
       virtiofsd
