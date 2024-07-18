@@ -29,7 +29,7 @@ rustPlatform.buildRustPackage rec {
     install -Dm644 50-virtiofsd.json "$out/share/qemu/vhost-user/50-virtiofsd.json"
   '';
 
-  target = "x86_64-unknownx-linux-musl";
+  target = "x86_64-unknown-linux-musl";
 
   meta = with lib; {
     homepage = "https://gitlab.com/virtio-fs/virtiofsd";
