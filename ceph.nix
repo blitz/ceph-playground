@@ -234,22 +234,23 @@ let
 
   generateClient = ip: { pkgs, lib, ... }: let
     start-sender-vm = pkgs.writeShellScriptBin "start-sender-vm" ''
-      sudo ${pkgs.virtiofsd}/bin/virtiofsd --socket-path=/tmp/vfsd.sock --shared-dir /mnt/cephfs --announce-submounts --inode-file-handles=mandatory &
+      sudo ${pkgs.virtiofsd}/bin/virtiofsd --socket-path=/tmp/vfsd.sock --shared-dir /mnt/cephfs --announce-submounts --inode-file-handles=mandatory --migration-on-error=guest-error &
       sleep 1
       sudo chmod 0666 /tmp/vfsd.sock
-      qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=2G,share=on -numa node,memdev=mem -m 2G -monitor stdio -display gtk -cdrom ${liveIso}/iso/*
+      qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=2G,share=on -numa node,memdev=mem -m 2G -monitor stdio -display gtk -vga qxl -cdrom ${liveIso}/iso/*
     '';
 
     start-receiver-vm = pkgs.writeShellScriptBin "start-receiver-vm" ''
-      sudo ${pkgs.virtiofsd}/bin/virtiofsd --socket-path=/tmp/vfsd.sock --shared-dir /mnt/cephfs --announce-submounts --inode-file-handles=mandatory &
+      sudo ${pkgs.virtiofsd}/bin/virtiofsd --socket-path=/tmp/vfsd.sock --shared-dir /mnt/cephfs --announce-submounts --inode-file-handles=mandatory --migration-on-error=guest-error &
       sleep 1
       sudo chmod 0666 /tmp/vfsd.sock
-      qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=2G,share=on -numa node,memdev=mem -m 2G -incoming tcp:192.168.1.3:2323 -display gtk -cdrom ${liveIso}/iso/*
+      qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=2G,share=on -numa node,memdev=mem -m 2G -incoming tcp:192.168.1.3:2323 -vga qxl -display gtk -cdrom ${liveIso}/iso/*
     '';
   in {
 
     virtualisation.cores = 4;
     virtualisation.memorySize = 6000;
+    virtualisation.qemu.options = [ "-vga qxl" ];
 
     users.mutableUsers = false;
     users.users.julian = {

@@ -17,8 +17,26 @@
         modules = [
           "${nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
           ({ pkgs, ... }: {
+            boot.initrd.supportedFilesystems = [ "virtiofs" ];
+            security.sudo.wheelNeedsPassword = false;
+            
+            # XXX Doesn't work?
+            fileSystems."/myfs" = {
+              device = "myfs";
+              fsType = "virtiofs";
+              options = [ "defaults" ];
+            };
+            
             environment.systemPackages = [
-              # XXX
+              (pkgs.writeShellScriptBin "mount-virtiofs" ''
+                sudo mkdir -p /myfs
+                sudo mount -t virtiofs myfs /myfs
+                echo foo | sudo tee /myfs/foo
+              '')
+              
+              pkgs.tmux
+              pkgs.strace
+              self.packages.x86_64-linux.virtiofs-test
             ];
           })
         ];
@@ -41,7 +59,8 @@
     in pkgs.callPackage ./virtiofsd.nix {};
 
     packages.x86_64-linux.liveIso = self.nixosConfigurations.liveIso.config.system.build.isoImage;
-
+    packages.x86_64-linux.virtiofs-test = nixpkgs.legacyPackages.x86_64-linux.callPackage ./ceph-test.nix {};
+    
     checks.x86_64-linux.ceph = nixpkgs.legacyPackages.x86_64-linux.nixosTest (import ./ceph.nix {
       liveIso = self.packages.x86_64-linux.liveIso;
     });
