@@ -11,6 +11,20 @@
 
   outputs = { self, nixpkgs, rust-overlay }: {
 
+    nixosConfigurations = {
+      liveIso = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          "${nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
+          ({ pkgs, ... }: {
+            environment.systemPackages = [
+              # XXX
+            ];
+          })
+        ];
+      };
+    };
+
     # A statically linked virtiofsd.
     packages.x86_64-linux.virtiofsd = let
       system = "x86_64-linux";
@@ -26,6 +40,10 @@
       };
     in pkgs.callPackage ./virtiofsd.nix {};
 
-    checks.x86_64-linux.ceph = nixpkgs.legacyPackages.x86_64-linux.nixosTest ./ceph.nix;
+    packages.x86_64-linux.liveIso = self.nixosConfigurations.liveIso.config.system.build.isoImage;
+
+    checks.x86_64-linux.ceph = nixpkgs.legacyPackages.x86_64-linux.nixosTest (import ./ceph.nix {
+      liveIso = self.packages.x86_64-linux.liveIso;
+    });
   };
 }
