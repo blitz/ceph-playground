@@ -237,14 +237,14 @@ let
       sudo ${pkgs.virtiofsd}/bin/virtiofsd --socket-path=/tmp/vfsd.sock --shared-dir /mnt/cephfs --announce-submounts --inode-file-handles=mandatory &
       sleep 1
       sudo chmod 0666 /tmp/vfsd.sock
-      qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=2G,share=on -numa node,memdev=mem -m 2G -monitor stdio -display gtk -kernel ${./cirros-0.6.2-x86_64-kernel} -initrd ${./cirros-0.6.2-x86_64-initramfs} -append "dslist=nocloud"
+      qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=2G,share=on -numa node,memdev=mem -m 2G -monitor stdio -display gtk -cdrom ${liveIso}/iso/*
     '';
 
     start-receiver-vm = pkgs.writeShellScriptBin "start-receiver-vm" ''
       sudo ${pkgs.virtiofsd}/bin/virtiofsd --socket-path=/tmp/vfsd.sock --shared-dir /mnt/cephfs --announce-submounts --inode-file-handles=mandatory &
       sleep 1
       sudo chmod 0666 /tmp/vfsd.sock
-      qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=2G,share=on -numa node,memdev=mem -m 2G -incoming tcp:192.168.1.3:2323 -display gtk
+      qemu-system-x86_64 -machine q35,accel=kvm -chardev socket,id=char0,path=/tmp/vfsd.sock -device vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=myfs -object memory-backend-memfd,id=mem,size=2G,share=on -numa node,memdev=mem -m 2G -incoming tcp:192.168.1.3:2323 -display gtk -cdrom ${liveIso}/iso/*
     '';
   in {
 
