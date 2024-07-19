@@ -12,7 +12,7 @@
 #include <string.h>
 
 int main() {
-  const char filename[] = "/myfs/foo";
+  const char filename[] = "/mnt/cephfs/foo";
   printf("Opening: %s\n", filename);
 
   int fd = open(filename, O_RDONLY);
