@@ -11,6 +11,15 @@ access to the shared filesystem via VirtioFS. These scripts are
 currently only intended to be executed when running the NixOS
 integration test interactively, and are not part of the test itself.
 
+## Installing Nix
+
+This repository requires that you have Nix with Flakes support
+enabled. You can install it via the [Determinate Nix
+installer](https://zero-to-nix.com/concepts/nix-installer).
+
+Installation via the official installer is also possible, but requires
+manual configuration afterwards to enable Flakes.
+
 ## Virtiofsd
 
 You can build a statically linked `virtiofsd` 0.11.1 binary using:
