@@ -19,21 +19,30 @@
           ({ pkgs, ... }: {
             boot.initrd.supportedFilesystems = [ "virtiofs" ];
             security.sudo.wheelNeedsPassword = false;
-            
-            # XXX Doesn't work?
-            fileSystems."/myfs" = {
-              device = "myfs";
-              fsType = "virtiofs";
-              options = [ "defaults" ];
+
+            # This doesn't work in the Live CD, so we use the systemd service below.
+            #
+            # fileSystems."/mnt/virtiofs" = {
+            #   device = "myfs";
+            #   fsType = "virtiofs";
+            #   options = [ "defaults" ];
+            # };
+
+            systemd.services.mountvirtiofs = {
+              description = "Mount the virtiofs filesystem";
+
+              script = ''
+                mkdir -p /mnt/virtiofs
+                mount -t virtiofs myfs /mnt/virtiofs
+                echo Hello World | tee /mnt/virtiofs/foo
+              '';
+
+              path = [ pkgs.util-linux ];
+
+              wantedBy = [ "multi-user.target" ];
             };
-            
+
             environment.systemPackages = [
-              (pkgs.writeShellScriptBin "mount-virtiofs" ''
-                sudo mkdir -p /myfs
-                sudo mount -t virtiofs myfs /myfs
-                echo foo | sudo tee /myfs/foo
-              '')
-              
               pkgs.tmux
               pkgs.strace
               self.packages.x86_64-linux.virtiofs-test
@@ -60,7 +69,7 @@
 
     packages.x86_64-linux.liveIso = self.nixosConfigurations.liveIso.config.system.build.isoImage;
     packages.x86_64-linux.virtiofs-test = nixpkgs.legacyPackages.x86_64-linux.callPackage ./ceph-test.nix {};
-    
+
     checks.x86_64-linux.ceph = nixpkgs.legacyPackages.x86_64-linux.nixosTest (import ./ceph.nix {
       liveIso = self.packages.x86_64-linux.liveIso;
     });

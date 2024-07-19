@@ -2,84 +2,96 @@
 
 This repository contains a NixOS integration test that setups up a Ceph cluster with two clients.
 
-The clients have been configured with scripts that launch [virtiofsd](https://gitlab.com/virtio-fs/virtiofsd)
-with the ceph filesystem as the shared filesystem together with QEMU VMs that have access to the shared filesystem
-via VirtioFS. These scripts are currently only intended to be executed when running the NiXOS integration test interactively,
-and are not part of the test itself.
+![Architecture Overview](./img/arch.png)
+
+The clients have been configured with scripts that launch
+[virtiofsd](https://gitlab.com/virtio-fs/virtiofsd) with the ceph
+filesystem as the shared filesystem together with QEMU VMs that have
+access to the shared filesystem via VirtioFS. These scripts are
+currently only intended to be executed when running the NixOS
+integration test interactively, and are not part of the test itself.
+
+## Virtiofsd
+
+You can build a statically linked `virtiofsd` 0.11.1 binary using:
+
+```console
+$ nix -L build .#virtiofsd
+```
+
+The binary will be in `result/bin/virtiofsd`.
 
 ## Live migration PoC
 
-Build the test to run interactively
+Build the test to run interactively:
 
-```bash
-$ nix -L build .\#checks.x86_64-linux.ceph.driverInteractive
+```console
+$ nix -L build .#checks.x86_64-linux.ceph.driverInteractive
 ```
 
-then run the test in interactive mode with
+Run the a Python shell that we will use to interact with the test setup:
 
-```bash
+```console
 $ ./result/bin/nixos-test-driver
 ```
 
-Now start the Ceph cluster by simply running the full test by calling
+Start the Ceph cluster and the two clients by running the test script:
 
-```bash
+```console
 test_script()
 ```
 
-wait until you see login screens for both the client VMs (client1 and client2).
+Wait until you see login screens for both the client VMs (client1 and client2).
 
 Login and open a shell in client1. 
 
-In client1's terminal execute
+In client1's terminal, verify that the Ceph filesystem is mounted:
 
-```bash
-$ start-sender-vm
+```console
+client1 $ mount | grep ceph
+# You need to see a ceph mount here.
 ```
 
-this spawns virtiofsd with the Ceph filesystem as the shared filesystem and
-launches a QEMU VM that boots from the NixOS live cd (you may just wait until you see a promt
-now). Once we obtain a promt we want to mount the ceph filesystem. First create the mount with
+Then start the VM that we will migrate later:
 
-```bash
-$ sudo mkdir /mnt/cephfs
+```console
+client1 $ start-sender-vm
 ```
 
-then we mount the cephfs filesystem
+This spawns virtiofsd with the Ceph filesystem as the shared
+filesystem and launches a QEMU VM that boots from the NixOS live cd
+(you may just wait until you see a prompt now). Once we obtain a
+prompt we want to mount the virtiofs filesystem.
 
-```bash
-$ sudo mount -t virtiofs myfs /mnt/cephfs
+Inside the newly started VM, we will now run a preinstalled test
+program that reads and prints the file contents of a file on the
+virtiofs (ceph) filesystem in a loop as our VM workload.
+
+```console
+vm $ virtiofs-test
 ```
 
-and we write our testfile there
-
-```bash
-$ echo "Hello world!" | sudo tee /mnt/cephfs/foo
-```
-
-we will now run a preinstalled program that
-reads and prints the read contents in a loop
-as our VM workload.
-
-```bash
-$virtiofs-test
-```
-
-You should now see "Hello world!" being printed repeatedly
+You should now see "Hello world" being printed repeatedly
 in the terminal.
 
-Now in client2's terminal execute
+Now in client2's terminal execute the following to start the Qemu that
+will be the target of the migration:
 
-```bash
-$ start-receiver-vm
+```console
+client2 $ start-receiver-vm
 ```
 
 which will then wait for an incoming migration.
 
-Go back to client1's qemu session and start the migration
+Go back to client1's Qemu session and start the migration:
 
-```bash
+```console
 (qemu) migrate tcp:192.168.1.3:2323
 ```
 
-You should now shortly see "Hello world!" being printed in the VM spawned by client2!
+You should now shortly see "Hello world" being printed in the VM spawned by client2!
+
+## Things to tinker
+
+To change the virtiofsd settings, modify the `start-sender-vm` and
+`start-receiver-vm` scripts in `ceph.nix`.
